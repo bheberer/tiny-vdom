@@ -1,3 +1,8 @@
+/* 
+TODO:
+diffing algorithm
+*/
+
 // generates a dom node w/ children and attributes 
 export function elem(type, props = {}, children = []) {
   let node = document.createElement(type);
