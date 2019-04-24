@@ -4,35 +4,35 @@ diffing algorithm
 */
 
 // generates a dom node w/ children and attributes
-// export function elem(type, props = {}, children = []) {
-//   let node = document.createElement(type);
+export function elem(type, props = {}, children = []) {
+	let node = document.createElement(type);
 
-//   for (const [k, v] of Object.entries(props)) {
-//     if (k === 'style') {
-//       for (const [i, j] of Object.entries(props[k])) {
-//         node.style[i] = j;
-//       }
-//     } else {
-//       node[k] = v;
-//     }
-//   }
+	for (const [k, v] of Object.entries(props)) {
+		if (k === 'style') {
+			for (const [i, j] of Object.entries(props[k])) {
+				node.style[i] = j;
+			}
+		} else {
+			node[k] = v;
+		}
+	}
 
-//   children.forEach(child => {
-//     node.append(child);
-//   });
+	children.forEach(child => {
+		node.append(child);
+	});
 
-//   return node;
-// }
+	return node;
+}
 
 // // renders generated elements to a dom target. Simple right now, no diffing, just replaces the entire tree.
-// export function render(element, target) {
-//   let targetNode = document.querySelector(target);
-//   while (targetNode.firstChild) {
-//     targetNode.removeChild(targetNode.firstChild);
-//   }
-//   targetNode.append(element);
-//   return targetNode;
-// }
+export function render(element, target) {
+	let targetNode = document.querySelector(target);
+	while (targetNode.firstChild) {
+		targetNode.removeChild(targetNode.firstChild);
+	}
+	targetNode.append(element);
+	return targetNode;
+}
 
 // basic stateful counter application
 function counterApp(props, prevState) {
@@ -75,136 +75,109 @@ function counterApp(props, prevState) {
 	]);
 }
 
-// state pulled out of component to eliminate need for 'this'.
-// Playing with this or with the 'prevState' pattern to keep it within the component.
-let state = {
-	listItems: [
-		{
-			checked: false,
-			value: 'Clean Room'
+function app(state, component) {
+	this.state = this.state || state;
+
+	return {
+		getState: () => this.state,
+		setState: newState => {
+			this.state = {
+				...this.state,
+				...newState
+			};
+			render(component(undefined, this.state), '#app');
 		},
-		{
-			checked: false,
-			value: 'Do Homework'
-		},
-		{
-			checked: false,
-			value: 'Study for test'
-		}
-	],
-	filter: false
-};
-
-// yup, it's setState.
-// let setState = newState => {
-//   state = {
-//     ...state,
-//     ...newState
-//   };
-//   render(new this.__proto__.constructor(undefined, state), '#app');
-// };
-
-// basically useEffect from React
-
-function effect(func, deps) {
-	if (this.deps) {
-		for (const [k, v] of Object.entries(this.deps)) {
-			if (deps[k] !== this.deps[k]) {
-				this.deps = {
-					...deps
-				};
+		effect: (func, deps) => {
+			if (this.deps) {
+				for (const [k, v] of Object.entries(this.deps)) {
+					if (deps[k] !== this.deps[k]) {
+						this.deps = {
+							...deps
+						};
+						return func();
+					}
+				}
+				return;
+			} else {
+				this.deps = deps;
 				return func();
 			}
 		}
-		return;
-	} else {
-		this.deps = {
-			...deps
-		};
-		return func();
-	}
+	};
 }
 
-// yup, setState
-function setState(newState) {
-  state = {
-    ...state,
-    ...newState
-  };
-  render(this.constructor(undefined, state), '#app');
-}
+let { getState, setState, effect } = new app(
+	{
+		listItems: [
+			{
+				checked: false,
+				value: 'Clean Room'
+			},
+			{
+				checked: false,
+				value: 'Do Homework'
+			},
+			{
+				checked: false,
+				value: 'Study for test'
+			}
+		],
+		filter: false
+	},
+	TodoList
+);
 
 // canonical todo app
-function TodoList(props, prevState) {
-  let state = prevState || {
-    listItems: [
-      {
-        checked: false,
-        value: 'Clean Room'
-      },
-      {
-        checked: false,
-        value: 'Do Homework'
-      },
-      {
-        checked: false,
-        value: 'Study for test'
-      }
-    ],
-    filter: false
-  };
+function TodoList(props) {
+	let state = getState();
 
-  effect.call(
-    this,
-    () => {
-      document.title = state.filter;
-    },
-    { filter: state.filter }
-  );
+	effect(
+		() => {
+      console.log('yo')
+			document.title = state.filter;
+		},
+		{ filter: state.filter }
+	);
 
-  let toggleFilter = e => {
-    setState.call(this, { filter: event.target.checked });
-  };
+	let toggleFilter = e => {
+		setState({ filter: event.target.checked });
+	};
 
-  let toggleItem = e => {
-    let newList = state.listItems.map((item, i) =>
-      i == e.target.id ? { ...item, checked: !item.checked } : item
-    );
-    setState.call(this, { listItems: newList });
-  };
+	let toggleItem = e => {
+		let newList = state.listItems.map((item, i) =>
+			i == e.target.id ? { ...item, checked: !item.checked } : item
+		);
+		setState({ listItems: newList });
+	};
 
-  let getFilteredItems = () =>
-    state.listItems.filter(item => !(state.filter && item.checked));
+	let getFilteredItems = () => state.listItems.filter(item => !(state.filter && item.checked));
 
-  return () =>
-    elem('div', undefined, [
-      elem('div', undefined, [
-        elem('input', {
-          type: 'checkbox',
-          id: 'filter',
-          name: 'filter',
-          onclick: toggleFilter,
-          checked: state.filter
-        }),
-        elem('label', { for: 'filter' }, ['Hide Finished'])
-      ]),
-      ...getFilteredItems().map((item, i) =>
-        elem(
-          'div',
-          { style: { display: 'flex' } },
-          item.checked
-          ? [
-              TodoListItem({ text: item.value, id: i, onclick: toggleItem }),
-              elem('div', undefined, ['👍'])
-            ]
-          : [TodoListItem({ text: item.value, id: i, onclick: toggleItem })]
-      )
-    )
-  ]);
+	return elem('div', undefined, [
+		elem('div', undefined, [
+			elem('input', {
+				type: 'checkbox',
+				id: 'filter',
+				name: 'filter',
+				onclick: toggleFilter,
+				checked: state.filter
+			}),
+			elem('label', { for: 'filter' }, ['Hide Finished'])
+		]),
+		...getFilteredItems().map((item, i) =>
+			elem(
+				'div',
+				{ style: { display: 'flex' } },
+				item.checked
+					? [
+							TodoListItem({ text: item.value, id: i, onclick: toggleItem }),
+							elem('div', undefined, ['👍'])
+					  ]
+					: [TodoListItem({ text: item.value, id: i, onclick: toggleItem })]
+			)
+		)
+	]);
 }
 function TodoListItem({ text, id, onclick }) {
-  return elem('div', { id, onclick }, [text]);
+	return elem('div', { id, onclick }, [text]);
 }
-
 render(new TodoList(), '#app');
-
