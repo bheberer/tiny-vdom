@@ -1,10 +1,20 @@
-import { elem, render, app } from './framework';
+import { elem, render, app, Component, ReactiveComponent } from './framework';
 /* 
 TODO:
 diffing / patching algorithm
+getting effects working w/ the new component model
+test whole thing with nested stateful components
 */
 
-let { getState, setState, effect } = new app(
+let Counter = new ReactiveComponent({ count: 0 }, (props, state) => {
+	return elem('div', {}, [
+		elem('button', { onclick: () => (state.count -= 1) }, ['-']),
+		state.count,
+		elem('button', { onclick: () => (state.count += 1) }, ['+'])
+	]);
+});
+
+let TodoListReactive = new ReactiveComponent(
 	{
 		listItems: [
 			{
@@ -22,61 +32,60 @@ let { getState, setState, effect } = new app(
 		],
 		filter: false
 	},
-	TodoList
+	(props, state) => {
+		let toggleFilter = e => {
+			state.filter = event.target.checked;
+		};
+
+		let toggleItem = e => {
+			let newList = state.listItems.map((item, i) =>
+				i == e.target.id ? { ...item, checked: !item.checked } : item
+			);
+			state.listItems = newList;
+		};
+
+		let getFilteredItems = () =>
+			state.listItems.filter(item => !(state.filter && item.checked));
+
+		return elem('div', undefined, [
+			elem('div', undefined, [
+				elem('input', {
+					type: 'checkbox',
+					id: 'filter',
+					name: 'filter',
+					onclick: toggleFilter,
+					checked: state.filter
+				}),
+				elem('label', { for: 'filter' }, ['Hide Finished'])
+			]),
+			...getFilteredItems().map((item, i) =>
+				elem(
+					'div',
+					{ style: { display: 'flex' } },
+					item.checked
+						? [
+								TodoListItemReactive({
+									text: item.value,
+									id: i,
+									onclick: toggleItem
+								}),
+								elem('div', undefined, ['👍'])
+						  ]
+						: [
+								TodoListItemReactive({
+									text: item.value,
+									id: i,
+									onclick: toggleItem
+								})
+						  ]
+				)
+			)
+		]);
+	}
 );
 
-// canonical todo app
-function TodoList(props) {
-	let state = getState();
-
-	effect(
-		() => {
-			document.title = state.filter;
-		},
-		{ filter: state.filter }
-	);
-
-	let toggleFilter = e => {
-		setState({ filter: event.target.checked });
-	};
-
-	let toggleItem = e => {
-		let newList = state.listItems.map((item, i) =>
-			i == e.target.id ? { ...item, checked: !item.checked } : item
-		);
-		setState({ listItems: newList });
-	};
-
-	let getFilteredItems = () => state.listItems.filter(item => !(state.filter && item.checked));
-
-	return elem('div', undefined, [
-		elem('div', undefined, [
-			elem('input', {
-				type: 'checkbox',
-				id: 'filter',
-				name: 'filter',
-				onclick: toggleFilter,
-				checked: state.filter
-			}),
-			elem('label', { for: 'filter' }, ['Hide Finished'])
-		]),
-		...getFilteredItems().map((item, i) =>
-			elem(
-				'div',
-				{ style: { display: 'flex' } },
-				item.checked
-					? [
-							TodoListItem({ text: item.value, id: i, onclick: toggleItem }),
-							elem('div', undefined, ['👍'])
-					  ]
-					: [TodoListItem({ text: item.value, id: i, onclick: toggleItem })]
-			)
-		)
-	]);
-}
-
-function TodoListItem({ text, id, onclick }) {
+function TodoListItemReactive({ text, id, onclick }) {
 	return elem('div', { id, onclick }, [text]);
 }
 
-render(TodoList(), '#app');
+render(TodoListReactive(), '#app');
