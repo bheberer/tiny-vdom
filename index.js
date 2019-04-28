@@ -1,20 +1,15 @@
-import { elem, render, app, Component, ReactiveComponent } from './framework';
+import { elem, render, app, Component, e } from './framework';
 /* 
 TODO:
 diffing / patching algorithm
-getting effects working w/ the new component model
+going to do lifecycle
+currently, render is just going to strings, set it to render to  anode
 test whole thing with nested stateful components
+update elem + render to work with jsx
+ - elem should do just that, create elems. actually, change 'elem' to 'e'
 */
 
-let Counter = new ReactiveComponent({ count: 0 }, (props, state) => {
-	return elem('div', {}, [
-		elem('button', { onclick: () => (state.count -= 1) }, ['-']),
-		state.count,
-		elem('button', { onclick: () => (state.count += 1) }, ['+'])
-	]);
-});
-
-let TodoListReactive = new ReactiveComponent(
+let TodoList = new Component(
 	{
 		listItems: [
 			{
@@ -47,45 +42,84 @@ let TodoListReactive = new ReactiveComponent(
 		let getFilteredItems = () =>
 			state.listItems.filter(item => !(state.filter && item.checked));
 
-		return elem('div', undefined, [
-			elem('div', undefined, [
-				elem('input', {
-					type: 'checkbox',
-					id: 'filter',
-					name: 'filter',
-					onclick: toggleFilter,
-					checked: state.filter
-				}),
-				elem('label', { for: 'filter' }, ['Hide Finished'])
-			]),
-			...getFilteredItems().map((item, i) =>
-				elem(
-					'div',
-					{ style: { display: 'flex' } },
-					item.checked
-						? [
-								TodoListItemReactive({
-									text: item.value,
-									id: i,
-									onclick: toggleItem
-								}),
-								elem('div', undefined, ['👍'])
-						  ]
-						: [
-								TodoListItemReactive({
-									text: item.value,
-									id: i,
-									onclick: toggleItem
-								})
-						  ]
-				)
-			)
-		]);
+		return (
+			<div>
+				<input
+					type='checkbox'
+					name='filter'
+					onclick={toggleFilter}
+					checked={state.filter}
+				/>
+				<label for='filter'>Hide Finished</label>
+				<ul>
+					{getFilteredItems().map((item, i) => (
+						<li
+							style={item.checked ? { textDecoration: 'line-through' } : {}}
+							onclick={toggleItem}
+							id={i}
+						>
+							{item.value}
+						</li>
+					))}
+				</ul>
+			</div>
+		);
 	}
 );
 
-function TodoListItemReactive({ text, id, onclick }) {
-	return elem('div', { id, onclick }, [text]);
-}
+let TodoListItem = ({ contents, id, onclick, checked }) => (
+	<li
+		style={checked ? { textDecoration: 'line-through' } : {}}
+		onclick={onclick}
+		id={id}
+	>
+		{contents}
+	</li>
+);
 
-render(TodoListReactive(), '#app');
+let Counter = new Component({ count: 0 }, (props, state) => (
+	<div>
+		<button onclick={() => (state.count -= 1)}>-</button>
+		{state.count}
+		<button onclick={() => (state.count += 1)}>+</button>
+	</div>
+));
+
+// maybe the route is Component -> Comp-Ref
+
+let CounterComp = props => {
+	return new Component(
+		{ count: 0 },
+		(props, state) => (
+			<div id={props.id}>
+				<button onclick={() => (state.count -= 1)}>-</button>
+				{state.count}
+				<button onclick={() => (state.count += 1)}>+</button>
+			</div>
+		),
+		'#' + props.id
+	)(props);
+};
+
+// Components of this style might have to be on the table because I may have to call new Component during render in order to get refs.
+// the problem with that is calling new Component on each render
+// maybe have a separate object controlling ref internals? (would happen every time a component is a component or a component utilizes lifecyle)
+// let Counter = props => ({
+// 	state: { count: 0 },
+// 	render: state => (
+// 		<div id={props.id}>
+// 			<button onclick={() => (state.count -= 1)}>-</button>
+// 			{state.count}
+// 			<button onclick={() => (state.count += 1)}>+</button>
+// 		</div>
+// 	)
+// });
+
+let CounterApp = () => (
+	<div>
+		<CounterComp id='first' />
+		<CounterComp id='second' />
+	</div>
+);
+
+render(<Counter />, document.querySelector('#app'));

@@ -1,6 +1,12 @@
 // generates a dom node w/ children and attributes
-export function elem(type, props = {}, children = []) {
+export function elem(type, props = {}, ...children) {
+	if (typeof type === 'function') {
+		return type(props);
+	}
 	let node = document.createElement(type);
+	if (props === null) {
+		props = {};
+	}
 
 	for (const [k, v] of Object.entries(props)) {
 		if (k === 'style') {
@@ -13,20 +19,68 @@ export function elem(type, props = {}, children = []) {
 	}
 
 	children.forEach(child => {
-		node.append(child);
+		if (Array.isArray(child)) {
+			child.forEach(c => {
+				node.append(c);
+			});
+		} else {
+			node.append(child);
+		}
 	});
+
+	return node;
+}
+
+export function e(type, props = {}, ...children) {
+	return {
+		type,
+		props,
+		children
+	};
+}
+
+export function r(element, target) {
+	let node;
+	if (typeof element.type === 'function') {
+		if (element.type(props).state) {
+			new Component(element.type(props).state);
+		}
+		node = r(element.type(props));
+	} else {
+		node = document.createElement(type);
+
+		for (const [k, v] of Object.entries(props)) {
+			if (k === 'style') {
+				for (const [i, j] of Object.entries(props[k])) {
+					node.style[i] = j;
+				}
+			} else {
+				node[k] = v;
+			}
+		}
+
+		children.forEach(child => {
+			if (Array.isArray(child)) {
+				child.forEach(c => {
+					node.append(c);
+				});
+			} else {
+				node.append(child);
+			}
+		});
+	}
 
 	return node;
 }
 
 // // renders generated elements to a dom target. Simple right now, no diffing, just replaces the entire tree.
 export function render(element, target) {
-	let targetNode = document.querySelector(target);
-	while (targetNode.firstChild) {
-		targetNode.removeChild(targetNode.firstChild);
+	console.log(target);
+	while (target.firstChild) {
+		target.removeChild(target.firstChild);
 	}
-	targetNode.append(element);
-	return targetNode;
+	target.append(element);
+	return target;
 }
 
 function diff(oldTree, newTree) {
@@ -74,7 +128,7 @@ export function app(state, component) {
 	};
 }
 
-export function Component(component) {
+export function ComponentTest(component) {
 	// this.state = this.state || state;
 	this.deps = this.deps || {};
 
@@ -88,7 +142,6 @@ export function Component(component) {
 			...this.state,
 			...newState
 		};
-		console.log(getState);
 		let newTree = component(props, getState, setState, effect);
 		diff(this.tree, newTree);
 		render(component(props, getState, setState, effect), '#app');
@@ -113,7 +166,7 @@ export function Component(component) {
 	};
 }
 
-export function ReactiveComponent(initialState, component) {
+export function Component(initialState, component, ref) {
 	let generateState = () => {
 		this.state = { data: { ...initialState } };
 		Object.keys(initialState).forEach(key => {
@@ -121,13 +174,17 @@ export function ReactiveComponent(initialState, component) {
 				get: () => {
 					return this.state.data[key];
 				},
-				set: (newValue) => {
+				set: newValue => {
 					this.state.data[key] = newValue;
-					render(component(this.props, this.state, effect), '#app');
+					render(
+						component(this.props, this.state, effect),
+						document.querySelector(this.ref)
+					);
 				}
 			});
 		});
 	};
+	this.ref = ref;
 
 	this.deps = this.deps || {};
 	generateState();
@@ -152,3 +209,14 @@ export function ReactiveComponent(initialState, component) {
 		return component(this.props, this.state, effect);
 	};
 }
+
+// function ComponentRef(component) {
+// 	this.ref = ()
+// }
+
+// export function Component(initialState, component) {
+// 	let internals =
+// 	return props => {
+
+// 	}
+// }
