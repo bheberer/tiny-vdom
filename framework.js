@@ -1,36 +1,3 @@
-// generates a dom node w/ children and attributes
-export function elem(type, props = {}, ...children) {
-	if (typeof type === 'function') {
-		return type(props);
-	}
-	let node = document.createElement(type);
-	if (props === null) {
-		props = {};
-	}
-
-	for (const [k, v] of Object.entries(props)) {
-		if (k === 'style') {
-			for (const [i, j] of Object.entries(props[k])) {
-				node.style[i] = j;
-			}
-		} else {
-			node[k] = v;
-		}
-	}
-
-	children.forEach(child => {
-		if (Array.isArray(child)) {
-			child.forEach(c => {
-				node.append(c);
-			});
-		} else {
-			node.append(child);
-		}
-	});
-
-	return node;
-}
-
 export function e(type, props = {}, ...children) {
 	return {
 		type,
@@ -39,19 +6,27 @@ export function e(type, props = {}, ...children) {
 	};
 }
 
-export function r(element, target) {
+export function render(element) {
 	let node;
 	if (typeof element.type === 'function') {
-		if (element.type(props).state) {
-			new Component(element.type(props).state);
-		}
-		node = r(element.type(props));
+		node = render(element.type(element.props));
+		return node;
+	} else if (element.type instanceof Component) {
+		let internals = element.type.render(element.props);
+		internals.setRef(render(internals.render()));
+		node = internals.ref;
+		return node;
 	} else {
-		node = document.createElement(type);
-
-		for (const [k, v] of Object.entries(props)) {
+		node = document.createElement(element.type);
+		if (!element.props) {
+			element.props = {};
+		}
+		if (element.props === null) {
+			element.props = {};
+		}
+		for (const [k, v] of Object.entries(element.props)) {
 			if (k === 'style') {
-				for (const [i, j] of Object.entries(props[k])) {
+				for (const [i, j] of Object.entries(element.props[k])) {
 					node.style[i] = j;
 				}
 			} else {
@@ -59,11 +34,13 @@ export function r(element, target) {
 			}
 		}
 
-		children.forEach(child => {
+		element.children.forEach(child => {
 			if (Array.isArray(child)) {
 				child.forEach(c => {
 					node.append(c);
 				});
+			} else if (typeof child === 'object') {
+				node.append(render(child, node));
 			} else {
 				node.append(child);
 			}
@@ -73,100 +50,13 @@ export function r(element, target) {
 	return node;
 }
 
-// // renders generated elements to a dom target. Simple right now, no diffing, just replaces the entire tree.
-export function render(element, target) {
-	console.log(target);
-	while (target.firstChild) {
-		target.removeChild(target.firstChild);
-	}
-	target.append(element);
-	return target;
+export function mount(dom, target) {
+	console.log(dom);
+	target.parentNode.replaceChild(dom, target);
+	return dom;
 }
 
-function diff(oldTree, newTree) {
-	console.log(oldTree, newTree);
-}
-
-export function app(state, component) {
-	this.state = this.state || state;
-	this.deps = this.deps || {};
-
-	return {
-		getState: () => this.state,
-		setState: newState => {
-			this.tree = this.tree || component();
-			this.state = {
-				...this.state,
-				...newState
-			};
-			let newTree = component(undefined, this.state);
-			diff(this.tree, newTree);
-			render(component(undefined, this.state), '#app');
-		},
-		effect: (func, deps) => {
-			if (this.deps) {
-				for (const [k, v] of Object.entries(this.deps)) {
-					if (deps[k] !== this.deps[k]) {
-						this.deps = deps;
-						return func();
-					}
-				}
-				return;
-			} else {
-				this.deps = deps;
-				return func();
-			}
-		},
-		render: (component, target) => {
-			let targetNode = document.querySelector(target);
-			while (targetNode.firstChild) {
-				targetNode.removeChild(targetNode.firstChild);
-			}
-			targetNode.append(element);
-			return targetNode;
-		}
-	};
-}
-
-export function ComponentTest(component) {
-	// this.state = this.state || state;
-	this.deps = this.deps || {};
-
-	let getState = initialState => {
-		this.state = this.state || initialState;
-		return this.state;
-	};
-	let setState = newState => {
-		this.tree = this.tree || component(props, getState, setState, effect);
-		this.state = {
-			...this.state,
-			...newState
-		};
-		let newTree = component(props, getState, setState, effect);
-		diff(this.tree, newTree);
-		render(component(props, getState, setState, effect), '#app');
-	};
-	let effect = (func, deps) => {
-		if (this.deps) {
-			for (const [k, v] of Object.entries(this.deps)) {
-				if (deps[k] !== this.deps[k]) {
-					this.deps = deps;
-					return func();
-				}
-			}
-			return;
-		} else {
-			this.deps = deps;
-			return func();
-		}
-	};
-
-	return function(props) {
-		return component(props, getState, setState, effect);
-	};
-}
-
-export function Component(initialState, component, ref) {
+export function ComponentInternals(props, initialState, component) {
 	let generateState = () => {
 		this.state = { data: { ...initialState } };
 		Object.keys(initialState).forEach(key => {
@@ -176,47 +66,28 @@ export function Component(initialState, component, ref) {
 				},
 				set: newValue => {
 					this.state.data[key] = newValue;
-					render(
-						component(this.props, this.state, effect),
-						document.querySelector(this.ref)
-					);
+					this.ref = mount(render(this.render()), this.ref);
 				}
 			});
 		});
 	};
-	this.ref = ref;
 
-	this.deps = this.deps || {};
-	generateState();
+	this.ref = this.ref || {};
 
-	let effect = (func, deps) => {
-		if (this.deps) {
-			for (const [k, v] of Object.entries(this.deps)) {
-				if (deps[k] !== this.deps[k]) {
-					this.deps = deps;
-					return func();
-				}
-			}
-			return;
-		} else {
-			this.deps = deps;
-			return func();
-		}
+	this.setRef = ref => {
+		this.ref = ref;
 	};
 
-	return props => {
-		this.props = props || {};
-		return component(this.props, this.state, effect);
+	generateState();
+	this.props = props || {};
+
+	this.render = () => {
+		return component(this.props, this.state);
 	};
 }
 
-// function ComponentRef(component) {
-// 	this.ref = ()
-// }
-
-// export function Component(initialState, component) {
-// 	let internals =
-// 	return props => {
-
-// 	}
-// }
+export function Component(initialState, component) {
+	this.render = props => {
+		return new ComponentInternals(props, initialState, component);
+	};
+}

@@ -1,4 +1,4 @@
-import { elem, render, app, Component, e } from './framework';
+import { render, Component, e, mount } from './framework';
 /* 
 TODO:
 diffing / patching algorithm
@@ -101,25 +101,11 @@ let CounterComp = props => {
 	)(props);
 };
 
-// Components of this style might have to be on the table because I may have to call new Component during render in order to get refs.
-// the problem with that is calling new Component on each render
-// maybe have a separate object controlling ref internals? (would happen every time a component is a component or a component utilizes lifecyle)
-// let Counter = props => ({
-// 	state: { count: 0 },
-// 	render: state => (
-// 		<div id={props.id}>
-// 			<button onclick={() => (state.count -= 1)}>-</button>
-// 			{state.count}
-// 			<button onclick={() => (state.count += 1)}>+</button>
-// 		</div>
-// 	)
-// });
-
 let CounterApp = () => (
 	<div>
-		<CounterComp id='first' />
-		<CounterComp id='second' />
+		<Counter id='first' />
+		<Counter id='second' />
 	</div>
 );
 
-render(<Counter />, document.querySelector('#app'));
+mount(render(<CounterApp />, document.querySelector('#app')), document.querySelector('#app'));

@@ -3,7 +3,7 @@
     [
       "@babel/plugin-transform-react-jsx",
       {
-        "pragma": "elem"
+        "pragma": "e"
       }
     ]
   ]
