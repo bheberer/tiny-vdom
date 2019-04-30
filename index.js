@@ -1,12 +1,8 @@
-import { render, Component, e, mount } from './framework';
+import { render, Component, e, mount, ComponentInternals } from './framework';
 /* 
 TODO:
 diffing / patching algorithm
-going to do lifecycle
-currently, render is just going to strings, set it to render to  anode
-test whole thing with nested stateful components
-update elem + render to work with jsx
- - elem should do just that, create elems. actually, change 'elem' to 'e'
+lifecycle
 */
 
 let TodoList = new Component(
@@ -53,13 +49,12 @@ let TodoList = new Component(
 				<label for='filter'>Hide Finished</label>
 				<ul>
 					{getFilteredItems().map((item, i) => (
-						<li
-							style={item.checked ? { textDecoration: 'line-through' } : {}}
-							onclick={toggleItem}
+						<TodoListItem
+							contents={item.value}
 							id={i}
-						>
-							{item.value}
-						</li>
+							onclick={toggleItem}
+							checked={item.checked}
+						/>
 					))}
 				</ul>
 			</div>
@@ -77,35 +72,36 @@ let TodoListItem = ({ contents, id, onclick, checked }) => (
 	</li>
 );
 
-let Counter = new Component({ count: 0 }, (props, state) => (
-	<div>
-		<button onclick={() => (state.count -= 1)}>-</button>
-		{state.count}
-		<button onclick={() => (state.count += 1)}>+</button>
-	</div>
-));
+let Incrementer = (props, state) => (
+	<button onclick={() => (state.count += 1)}>+</button>
+);
 
-// maybe the route is Component -> Comp-Ref
-
-let CounterComp = props => {
-	return new Component(
-		{ count: 0 },
-		(props, state) => (
-			<div id={props.id}>
-				<button onclick={() => (state.count -= 1)}>-</button>
-				{state.count}
-				<button onclick={() => (state.count += 1)}>+</button>
-			</div>
-		),
-		'#' + props.id
-	)(props);
-};
+let Counter = Component(
+	{
+		state: { count: 0 }
+	},
+	(props, state) => (
+		<div>
+			<button onclick={() => (state.count -= 1)}>-</button>
+			{state.count}
+			<Incrementer />
+		</div>
+	)
+);
 
 let CounterApp = () => (
 	<div>
-		<Counter id='first' />
-		<Counter id='second' />
+		<Counter />
+		<Counter />
 	</div>
 );
 
-mount(render(<CounterApp />, document.querySelector('#app')), document.querySelector('#app'));
+function counter(step, state) {
+	let increment = () => (state.count += step);
+	let decrement = () => (state.count -= step);
+	return { increment, decrement };
+}
+
+mount(render(<CounterApp />), document.querySelector('#app'));
+
+// have child function components that take in 'state' reference the nearest ancestor state
