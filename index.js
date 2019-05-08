@@ -1,107 +1,81 @@
-import { render, Component, e, mount, ComponentInternals } from './framework';
+import {
+	render,
+	Component,
+	e,
+	mount,
+	ComponentInternals,
+	renderNova,
+	value,
+	state
+} from './framework';
+
 /* 
 TODO:
 diffing / patching algorithm
 lifecycle
+global state access
+prevent automatic rerender on inputs / find a way to maintain focus and mouse state between renders (pretty sure this will be fine when i implement diffing)
+allow state object to be reset
+use proxies instead of getters / setters
+batch updates in the same block
+use textnodes
 */
 
-let TodoList = new Component(
-	{
-		listItems: [
-			{
-				checked: false,
-				value: 'Clean Room'
-			},
-			{
-				checked: false,
-				value: 'Do Homework'
-			},
-			{
-				checked: false,
-				value: 'Study for test'
-			}
-		],
-		filter: false
-	},
-	(props, state) => {
-		let toggleFilter = e => {
-			state.filter = event.target.checked;
-		};
-
-		let toggleItem = e => {
-			let newList = state.listItems.map((item, i) =>
-				i == e.target.id ? { ...item, checked: !item.checked } : item
-			);
-			state.listItems = newList;
-		};
-
-		let getFilteredItems = () =>
-			state.listItems.filter(item => !(state.filter && item.checked));
-
-		return (
-			<div>
-				<input
-					type='checkbox'
-					name='filter'
-					onclick={toggleFilter}
-					checked={state.filter}
-				/>
-				<label for='filter'>Hide Finished</label>
-				<ul>
-					{getFilteredItems().map((item, i) => (
-						<TodoListItem
-							contents={item.value}
-							id={i}
-							onclick={toggleItem}
-							checked={item.checked}
-						/>
-					))}
-				</ul>
-			</div>
-		);
-	}
-);
-
-let TodoListItem = ({ contents, id, onclick, checked }) => (
-	<li
-		style={checked ? { textDecoration: 'line-through' } : {}}
-		onclick={onclick}
-		id={id}
-	>
-		{contents}
-	</li>
-);
-
-let Incrementer = (props, state) => (
-	<button onclick={() => (state.count += 1)}>+</button>
-);
-
-let Counter = Component(
-	{
-		state: { count: 0 }
-	},
-	(props, state) => (
-		<div>
-			<button onclick={() => (state.count -= 1)}>-</button>
-			{state.count}
-			<Incrementer />
-		</div>
-	)
-);
-
-let CounterApp = () => (
-	<div>
-		<Counter />
-		<Counter />
-	</div>
-);
-
-function counter(step, state) {
-	let increment = () => (state.count += step);
-	let decrement = () => (state.count -= step);
-	return { increment, decrement };
-}
-
-mount(render(<CounterApp />), document.querySelector('#app'));
+// mount(render(<CounterApp />), document.querySelector('#app'));
 
 // have child function components that take in 'state' reference the nearest ancestor state
+
+// let synth = new Tone.FMSynth().toMaster();
+// let pitchInterpolater = new Tone.CtrlInterpolate([40, 2000]);
+// let volumeInterpolater = new Tone.CtrlInterpolate([5, -20]);
+
+// maybe components should be purely function and just recieve everything in an object like this
+/*
+object could be like:
+{
+	state,
+	props,
+	onInit,
+	onMount,
+	onUpdate,
+	onDestroy,
+	ref,
+	global,
+	style
+}
+*/
+
+function CounterMult() {
+	return (
+		<div>
+			<CounterNova />
+			<CounterNova />
+		</div>
+	);
+}
+
+function CounterReactiveNova() {
+	let countState = state({ count: 0 });
+	let count = value(5);
+	let incrementState = () => countState.count++;
+	let increment = () => count.value++;
+	return (
+		<div>
+			<input type='number' value={countState.count} />
+			<button onclick={incrementState}>count state</button>
+			<input type='number' value={count.value} />
+			<button onclick={increment}>count</button>
+		</div>
+	);
+}
+
+function CounterAppHooks() {
+	return (
+		<div>
+			<CounterReactiveNova id={1} />
+			<CounterReactiveNova id={2} />
+		</div>
+	);
+}
+
+mount(renderNova(<CounterAppHooks />), document.querySelector('#app'));
