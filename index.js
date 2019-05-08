@@ -1,81 +1,67 @@
-import {
-	render,
-	Component,
-	e,
-	mount,
-	ComponentInternals,
-	renderNova,
-	value,
-	state
-} from './framework';
+import { e, render, value, state } from './framework';
 
 /* 
 TODO:
 diffing / patching algorithm
 lifecycle
-global state access
+global state access (context)
+computed values
 prevent automatic rerender on inputs / find a way to maintain focus and mouse state between renders (pretty sure this will be fine when i implement diffing)
-allow state object to be reset
-use proxies instead of getters / setters
 batch updates in the same block
 use textnodes
+optimize generally
 */
 
-// mount(render(<CounterApp />), document.querySelector('#app'));
 
-// have child function components that take in 'state' reference the nearest ancestor state
-
-// let synth = new Tone.FMSynth().toMaster();
-// let pitchInterpolater = new Tone.CtrlInterpolate([40, 2000]);
-// let volumeInterpolater = new Tone.CtrlInterpolate([5, -20]);
-
-// maybe components should be purely function and just recieve everything in an object like this
-/*
-object could be like:
-{
-	state,
-	props,
-	onInit,
-	onMount,
-	onUpdate,
-	onDestroy,
-	ref,
-	global,
-	style
+function useCounter(initialCount) {
+	let count = value(0);
+	let increment = () => count.value++;
+	return { count, increment };
 }
-*/
 
-function CounterMult() {
+function Counter() {
+	let count = value(5);
+	let increment = () => count.value++;
+	let countState = state({ count: 0 });
+	let incrementState = () => countState.count++;
 	return (
 		<div>
-			<CounterNova />
-			<CounterNova />
+			<input type='number' value={count.value} />
+			<button onclick={increment}>count</button>
+			<input type='number' value={countState.count} />
+			<button onclick={incrementState}>count state</button>
+			{}
 		</div>
 	);
 }
 
-function CounterReactiveNova() {
-	let countState = state({ count: 0 });
-	let count = value(5);
-	let incrementState = () => countState.count++;
-	let increment = () => count.value++;
+function CounterCustom() {
+	let { count, increment } = useCounter(0);
 	return (
 		<div>
-			<input type='number' value={countState.count} />
-			<button onclick={incrementState}>count state</button>
 			<input type='number' value={count.value} />
 			<button onclick={increment}>count</button>
 		</div>
 	);
 }
 
-function CounterAppHooks() {
+function CounterTest() {
+	let { count, increment } = useCounter(0);
 	return (
 		<div>
-			<CounterReactiveNova id={1} />
-			<CounterReactiveNova id={2} />
+			<input type='number' value={count.value} />
+			<button onclick={increment}>count</button>
 		</div>
 	);
 }
 
-mount(renderNova(<CounterAppHooks />), document.querySelector('#app'));
+function CounterApp() {
+	return (
+		<div>
+			<CounterCustom id={1} />
+			<CounterTest id={2} />
+		</div>
+	);
+}
+
+render(<CounterApp />, document.querySelector('#app'));
