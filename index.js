@@ -1,67 +1,98 @@
 import { e, render, value, state } from './framework';
 
 /* 
-TODO:
+TODO: in order of priority
 diffing / patching algorithm
+batch updates within event loop
 lifecycle
-global state access (context)
-computed values
-prevent automatic rerender on inputs / find a way to maintain focus and mouse state between renders (pretty sure this will be fine when i implement diffing)
-batch updates in the same block
-use textnodes
-optimize generally
+computed values / watch
+make code not an absolute mess
+fragments / find a way to circumvent
+scoped css api?
 */
 
-
-function useCounter(initialCount) {
+function useCounter(initialCount, step) {
 	let count = value(0);
-	let increment = () => count.value++;
+	let increment = () => (count.value += step);
 	return { count, increment };
 }
 
-function Counter() {
-	let count = value(5);
-	let increment = () => count.value++;
-	let countState = state({ count: 0 });
-	let incrementState = () => countState.count++;
+function Counter({ initialCount = 0, step = 1 }) {
+	let { count, increment } = useCounter(initialCount, step);
+
 	return (
 		<div>
 			<input type='number' value={count.value} />
-			<button onclick={increment}>count</button>
-			<input type='number' value={countState.count} />
-			<button onclick={incrementState}>count state</button>
-			{}
+			<button onclick={increment}>count state</button>
 		</div>
 	);
 }
 
-function CounterCustom() {
-	let { count, increment } = useCounter(0);
+// input not a thing yet bc of no diffing alg, focus state gets destroyed
+function TodoList() {
+	let data = state({
+		items: [
+			{ text: 'study for finals', checked: false },
+			{ text: 'fail finals', checked: false },
+			{ text: 'clean room', checked: false }
+		],
+		filter: false,
+		text: ''
+	});
+
+	let toggleFilter = e => {
+		data.filter = e.target.checked;
+	};
+
+	let toggleItem = e => {
+		data.items = data.items.map((item, i) =>
+			i == e.target.id ? { ...item, checked: !item.checked } : item
+		);
+	};
+
+	let getFilteredItems = () =>
+		data.items.filter(item => !(data.filter && item.checked));
+
 	return (
 		<div>
-			<input type='number' value={count.value} />
-			<button onclick={increment}>count</button>
+			<input
+				type='checkbox'
+				name='filter'
+				onclick={toggleFilter}
+				checked={data.filter}
+			/>
+			<label for='filter'>Hide Finished</label>
+			<ul>
+				{getFilteredItems().map((item, i) => (
+					<li
+						style={item.checked ? { textDecoration: 'line-through' } : {}}
+						onclick={toggleItem}
+						id={i}
+					>
+						{item.text}
+					</li>
+				))}
+			</ul>
 		</div>
 	);
 }
 
-function CounterTest() {
-	let { count, increment } = useCounter(0);
-	return (
-		<div>
-			<input type='number' value={count.value} />
-			<button onclick={increment}>count</button>
-		</div>
-	);
-}
+/*
+Thinking about css API, thinking about something like:
 
-function CounterApp() {
-	return (
-		<div>
-			<CounterCustom id={1} />
-			<CounterTest id={2} />
-		</div>
-	);
-}
+Counter.css = `
+	button {
+		...
+	}
+	input {
+		...
+	}
+`
+to attach styles to component instance (not even sure if that'll work)
 
-render(<CounterApp />, document.querySelector('#app'));
+Could also have the css function be a hook and call it within a component
+
+SFC another obvious option but I don't want to be locked into SFCs
+*/
+
+render(<TodoList />, document.querySelector('#app'));
