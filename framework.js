@@ -71,21 +71,83 @@ export function getFragment(element, lastComponent) {
 }
 
 function diff(oldElement, newElement) {
+	if (typeof oldElement === 'string' || typeof newElement === 'string') {
+		if (oldElement !== newElement) {
+			return node => {
+				let newFragment = getFragment(newElement);
+				node.replaceWith(newFragment);
+				return newFragment;
+			};
+		} else {
+			return node => node;
+		}
+	}
+
 	if (
 		oldElement == null ||
 		newElement == null ||
 		oldElement.type !== newElement.type
 	) {
+		// this is probably where I would want to be running onMount + onDestroy if the elements are components
 		let fragment = oldElement.type.fragment;
 		fragment.parentNode.replaceChild(fragment, render(newElement));
-	} else {
-		if (
-			typeof oldElement.type === 'function' &&
-			typeof newElement.type === 'function'
-		) {
-			let updatedComponent = newElement.type(oldElement.props);
-		}
 	}
+	let patchProps = diffProps(oldElement.props, newElement.props);
+	let patchChildren = diffChildren(oldElement.children, newElement.children);
+
+	return node => {
+		patchProps(node);
+		patchChildren(node);
+		return node;
+	};
+}
+
+function diffProps(oldProps, newProps) {
+	let patches = [];
+
+	for (let [k, v] of Object.entries(newProps)) {
+		patches.push(node => {
+			node.setAttribute(k, v);
+			return node;
+		});
+	}
+
+	for (let [k, v] of Object.entries(oldProps)) {
+		patches.push(node => {
+			node.removeAttribute(k, v);
+			return node;
+		});
+	}
+
+	return node => {
+		for (let patch of patches) {
+			patch(node);
+		}
+		return node;
+	};
+}
+
+function diffChildren(oldChildren, newChildren) {
+	let patches = [];
+	oldChildren.forEach((child, i) => {
+		patches.push(diff(oldChildren, newChildren[i]));
+	});
+	let additionalPatches = [];
+	for (let additionalChild of newChildren.slice(oldChildren.length)) {
+		additionalPatches.push(node => {
+			node.appendChild(getFragment(additionalChild));
+			return node;
+		});
+	}
+	return parent => {
+		parent.childNodes.forEach((child, i) => {
+			patches[i](child);
+		});
+		for (let patch of additionalPatches) {
+			patch(parent);
+		}
+		return parent;
+	};
 }
 
 export function getHookState(index) {
