@@ -1,4 +1,13 @@
-import { e, render, value, state } from './framework';
+import {
+	e,
+	render,
+	value,
+	obj,
+	createContainer,
+	createContainerTest,
+	useContainer,
+	compose
+} from './framework';
 
 /* 
 TODO: in order of priority
@@ -9,24 +18,67 @@ computed values / watch
 make code not an absolute mess
 fragments / find a way to circumvent
 scoped css api?
+containers?
 */
 
-function useCounter(initialCount, step) {
-	let count = value(0);
-	let increment = () => (count.value += step);
+// function useCounter(initialCount, step) {
+// 	let count = value(0);
+// 	let increment = () => (count.value += step);
+// 	return { count, increment };
+// }
+
+// let counter = {
+// 	state: { count: 0 },
+// 	methods: state => ({
+// 		increment: () => state.count++
+// 	})
+// };
+
+// let ressetableCounter = compose(
+// 	counter,
+// 	{
+// 		methods: state => ({
+// 			reset: () => (state.count = 0)
+// 		})
+// 	}
+// );
+
+// function Counter() {
+// 	let { state, increment } = createContainer(ressetableCounter);
+// 	return (
+// 		<div>
+// 			<input type='number' value={state.count} />
+// 			<button onclick={increment}>count state</button>
+// 			<ResetButton />
+// 		</div>
+// 	);
+// }
+
+// function ResetButton() {
+// 	let { reset } = useContainer(ressetableCounter);
+// 	return <button onclick={reset}>reset</button>;
+// }
+
+let counter = createContainerTest((initialCount, step) => {
+	let count = value(initialCount);
+	let increment = () => count.value++;
 	return { count, increment };
-}
+});
 
-function Counter({ initialCount = 0, step = 1 }) {
-	let { count, increment } = useCounter(initialCount, step);
-
+function Counter({ initialCount, step }) {
+	let { count, increment } = counter.openContainer(initialCount, step);
 	return (
 		<div>
 			<input type='number' value={count.value} />
-			<button onclick={increment}>count state</button>
+			<button onclick={increment}>+</button>
 		</div>
 	);
 }
+
+// function IncrementButton() {
+// 	let { increment } = counter.useContainer();
+// 	return <button onclick={increment}>+</button>;
+// }
 
 // input not a thing yet bc of no diffing alg, focus state gets destroyed
 function TodoList() {
@@ -95,4 +147,4 @@ Could also have the css function be a hook and call it within a component
 SFC another obvious option but I don't want to be locked into SFCs
 */
 
-render(<TodoList />, document.querySelector('#app'));
+render(<Counter initialCount={0} step={1} />, document.querySelector('#app'));
