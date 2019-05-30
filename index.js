@@ -1,13 +1,4 @@
-import {
-	e,
-	render,
-	value,
-	obj,
-	createContainer,
-	createContainerTest,
-	useContainer,
-	compose
-} from './framework';
+import { e, render, value, obj, createContainer } from './framework';
 
 /* 
 TODO: in order of priority
@@ -21,64 +12,40 @@ scoped css api?
 containers?
 */
 
-// function useCounter(initialCount, step) {
-// 	let count = value(0);
-// 	let increment = () => (count.value += step);
-// 	return { count, increment };
-// }
-
-// let counter = {
-// 	state: { count: 0 },
-// 	methods: state => ({
-// 		increment: () => state.count++
-// 	})
-// };
-
-// let ressetableCounter = compose(
-// 	counter,
-// 	{
-// 		methods: state => ({
-// 			reset: () => (state.count = 0)
-// 		})
-// 	}
-// );
-
-// function Counter() {
-// 	let { state, increment } = createContainer(ressetableCounter);
-// 	return (
-// 		<div>
-// 			<input type='number' value={state.count} />
-// 			<button onclick={increment}>count state</button>
-// 			<ResetButton />
-// 		</div>
-// 	);
-// }
-
-// function ResetButton() {
-// 	let { reset } = useContainer(ressetableCounter);
-// 	return <button onclick={reset}>reset</button>;
-// }
-
-let counter = createContainerTest((initialCount, step) => {
+let counter = (initialCount, step) => {
 	let count = value(initialCount);
 	let increment = () => count.value++;
 	return { count, increment };
-});
+};
+
+let ressetableCounter = (initialCount, step) => {
+	let { count, increment } = counter(initialCount, step);
+	let reset = () => (count.value = 0);
+	return { reset, count, increment };
+};
+
+let CounterContainer = createContainer(ressetableCounter);
 
 function Counter({ initialCount, step }) {
-	let { count, increment } = counter.openContainer(initialCount, step);
+	let { count } = CounterContainer.open(initialCount, step);
 	return (
 		<div>
 			<input type='number' value={count.value} />
-			<button onclick={increment}>+</button>
+			<IncrementButton />
+			<ResetButton />
 		</div>
 	);
 }
 
-// function IncrementButton() {
-// 	let { increment } = counter.useContainer();
-// 	return <button onclick={increment}>+</button>;
-// }
+function IncrementButton() {
+	let { increment } = CounterContainer.use();
+	return <button onclick={increment}>+</button>;
+}
+
+function ResetButton() {
+	let { reset } = CounterContainer.use();
+	return <button onclick={reset}>reset</button>;
+}
 
 // input not a thing yet bc of no diffing alg, focus state gets destroyed
 function TodoList() {

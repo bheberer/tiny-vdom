@@ -20,18 +20,22 @@ export function render(element, target) {
 // if it sees a component instance, we're re-rendering a component
 // otherwise its typical elements
 // need to get default props to work
-export function getFragment(element) {
+export function getFragment(element, lastComponent) {
 	let node;
 	if (typeof element.type === 'function') {
 		element.type = new Component(element.props, element.type, element.children);
-		element.type.fragment = getFragment(element);
+		element.type.parentComponent = lastComponent;
+		element.type.fragment = getFragment(element, element.type);
 		element.fragment = element.type.fragment;
 		element.type.vDom = element;
 		node = element.type.fragment;
 	} else if (element.type instanceof Component) {
 		currentComponent = element.type;
 		currentIndex = 0;
-		element.type.fragment = getFragment(element.type.render(element.props));
+		element.type.fragment = getFragment(
+			element.type.render(element.props),
+			element.type
+		);
 		element.fragment = element.type.fragment;
 		node = element.type.fragment;
 	} else {
@@ -54,10 +58,10 @@ export function getFragment(element) {
 		element.children.forEach(child => {
 			if (Array.isArray(child)) {
 				child.forEach(c => {
-					node.append(getFragment(c));
+					node.append(getFragment(c, lastComponent));
 				});
 			} else if (typeof child === 'object') {
-				node.append(getFragment(child));
+				node.append(getFragment(child, lastComponent));
 			} else {
 				node.append(document.createTextNode(child));
 			}
@@ -170,71 +174,31 @@ export function e(type, props = {}, ...children) {
 	};
 }
 
-export function createContainer({ state, methods }) {
-	let hookState = getHookState(currentIndex++);
-	if (!hookState._component) {
-		hookState._component = currentComponent;
-		let _state = obj(state);
-		currentComponent.container = { state: _state, ...methods(_state) };
-	}
-	return currentComponent.container;
-}
-
-export function createContainerTest(fn) {
-	let openContainer = (...args) => {
+export function createContainer(fn) {
+	let open = (...args) => {
 		let hookState = getHookState(currentIndex++);
 		if (!hookState._component) {
 			hookState._component = currentComponent;
 			let contents = fn(...args);
 			currentComponent.container = { ...contents };
+			currentComponent.containerFn = fn;
 		}
 		return currentComponent.container;
 	};
-	let useContainer = () => {
+	let use = () => {
 		let hookState = getHookState(currentIndex++);
 		if (!hookState._component) {
 			hookState._component = currentComponent;
-		}
-	};
-	return { openContainer };
-}
-
-// export function useContainer({ data, methods }) {
-// 	for (const [k, v] of Object.entries(data)) {
-// 		data[k] = typeof v === 'object' ? state(v) : value(v);
-// 	}
-// 	return {
-// 		...data,
-// 		...methods(data)
-// 	};
-// }
-
-export function useContainer({ data, methods }) {
-	let hookState = getHookState(currentIndex++);
-	if (!hookState._component) {
-		hookState._component = currentComponent;
-	}
-}
-
-export function compose(...containers) {
-	let state = {},
-		methods = {};
-	containers.forEach((container, i) => {
-		for (const [k, v] of Object.entries(container.state || {})) {
-			state[k] = v;
-		}
-		methods[i] = container.methods;
-	});
-	return {
-		state,
-		methods: state => {
-			let result = {};
-			for (const [k, v] of Object.entries(methods)) {
-				result = { ...result, ...v(state) };
+			let parent = currentComponent.parentComponent;
+			while (parent) {
+				if (parent.containerFn === fn) {
+					return parent.container;
+				}
+				parent = parent.parentComponent;
 			}
-			return result;
 		}
 	};
+	return { open, use };
 }
 
 /*
