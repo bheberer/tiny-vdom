@@ -1,6 +1,13 @@
-import { Component } from './index';
+import { Component, getFragment } from './index';
 
 export function diff(oldElement, newElement) {
+	if (newElement === undefined) {
+		return node => {
+			node.remove();
+			return undefined;
+		};
+	}
+
 	if (typeof oldElement === 'string' || typeof newElement === 'string') {
 		if (oldElement !== newElement) {
 			return node => {
@@ -21,18 +28,16 @@ export function diff(oldElement, newElement) {
 		};
 	}
 
-	if (
-		oldElement == null ||
-		newElement == null ||
-		oldElement.type !== newElement.type
-	) {
+	if (oldElement.type !== newElement.type) {
 		// this is probably where I would want to be running onMount + onDestroy if the elements are components
-		console.log('yo')
-		let fragment = oldElement.type.fragment;
-		fragment.parentNode.replaceChild(fragment, render(newElement));
+		// console.log('yo')
+		return node => {
+			node.replaceWith(getFragment(newElement));
+			return node;
+		};
 	}
 
-	console.log(oldElement, newElement)
+	// console.log(oldElement, newElement)
 
 	let patchProps = diffProps(
 		oldElement.type instanceof Component
@@ -63,7 +68,14 @@ function diffProps(oldProps, newProps) {
 
 	for (let [k, v] of Object.entries(newProps === null ? {} : newProps)) {
 		patches.push(node => {
-			node[k] = v;
+			if (k === 'style') {
+				node.style = {};
+				for (const [i, j] of Object.entries(v)) {
+					node.style[i] = j;
+				}
+			} else {
+				node[k] = v;
+			}
 			return node;
 		});
 	}

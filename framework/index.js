@@ -1,7 +1,8 @@
 import { diff } from './diff';
+import { currentComponent, currentIndex } from './hooks';
 
-let currentComponent;
-let currentIndex;
+// let currentComponent;
+// let currentIndex;
 
 export function Component(props, component, children) {
 	this.props = props;
@@ -70,7 +71,7 @@ export function createVDom(element, lastComponent) {
 	return element;
 }
 
-function getFragment(vDom) {
+export function getFragment(vDom) {
 	let node;
 	if (vDom.type instanceof Component) {
 		let fragment = getFragment(vDom.children[0]);
@@ -134,8 +135,10 @@ export function value(initialValue) {
 				},
 				set: function(obj, prop, value) {
 					obj[prop] = value;
+					let oldVDom = hookState._component.vDom;
 					let element = createVDom(hookState._component.element);
-					let patch = diff(hookState._component.vDom, element);
+					console.log(oldVDom, element);
+					let patch = diff(oldVDom, element);
 					patch(hookState._component.fragment);
 					return true;
 				}
@@ -163,10 +166,9 @@ export function obj(initialState) {
 				} else {
 					obj[prop] = value;
 				}
+				let oldVDom = { ...hookState._component.vDom };
 				let element = createVDom(hookState._component.element);
-				console.log(hookState._component.vDom);
-				return true;
-				let patch = diff(hookState._component.vDom, element);
+				let patch = diff(oldVDom, element);
 				patch(hookState._component.fragment);
 				return true;
 			}
