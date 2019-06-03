@@ -1,15 +1,18 @@
 import {
 	e,
 	render,
-	value,
-	obj,
+	// value,
+	// obj,
 	createContainer,
 	createVDom
 } from './framework/index';
 
+import { value, obj } from './framework/hooks';
+
 /* 
 TODO: in order of priority
 diffing / patching algorithm
+	- optimizing lists (keys)
 batch updates within event loop
 lifecycle
 computed values / watch

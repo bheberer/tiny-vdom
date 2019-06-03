@@ -1,3 +1,7 @@
+export let currentComponent;
+export let currentIndex;
+export let currentHook = {};
+
 export function getHookState(index) {
 	let hooks =
 		currentComponent.__hooks ||
@@ -24,15 +28,11 @@ export function value(initialValue) {
 				},
 				set: function(obj, prop, value) {
 					obj[prop] = value;
-					let element = {
-						type: hookState._component,
-						props: hookState._component.props,
-						children: hookState._component.children
-					};
-					console.log(hookState._component.vDom);
-					console.log(element);
-					// console.log(hookState._component.render(hookState._component.props));
-					render(element, hookState._component.fragment);
+					let oldVDom = hookState._component.vDom;
+					let element = createVDom(hookState._component.element);
+					console.log(oldVDom, element);
+					let patch = diff(oldVDom, element);
+					patch(hookState._component.fragment);
 					return true;
 				}
 			}
@@ -59,12 +59,10 @@ export function obj(initialState) {
 				} else {
 					obj[prop] = value;
 				}
-				let element = {
-					type: hookState._component,
-					props: hookState._component.props,
-					children: hookState._component.children
-				};
-				render(element, hookState._component.fragment);
+				let oldVDom = { ...hookState._component.vDom };
+				let element = createVDom(hookState._component.element);
+				let patch = diff(oldVDom, element);
+				patch(hookState._component.fragment);
 				return true;
 			}
 		});
