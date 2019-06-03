@@ -1,4 +1,11 @@
-import { e, render, value, obj, createContainer } from './framework';
+import {
+	e,
+	render,
+	value,
+	obj,
+	createContainer,
+	createVDom
+} from './framework/index';
 
 /* 
 TODO: in order of priority
@@ -9,7 +16,6 @@ computed values / watch
 make code not an absolute mess
 fragments / find a way to circumvent
 scoped css api?
-containers?
 */
 
 let counter = (initialCount, step) => {
@@ -49,18 +55,25 @@ function ResetButton() {
 
 // input not a thing yet bc of no diffing alg, focus state gets destroyed
 function TodoList() {
-	let data = state({
-		items: [
-			{ text: 'study for finals', checked: false },
-			{ text: 'fail finals', checked: false },
-			{ text: 'clean room', checked: false }
-		],
+	let data = obj({
+		items: [{ text: 'clean room', checked: false }],
 		filter: false,
 		text: ''
 	});
 
 	let toggleFilter = e => {
 		data.filter = e.target.checked;
+	};
+
+	let addTodo = e => {
+		data.items = [...data.items, { text: data.text, checked: false }];
+		// data.items.push({ text: data.text, checked: false });
+	};
+
+	// console.log(data.items)
+
+	let onTextChange = e => {
+		data.text = e.target.value;
 	};
 
 	let toggleItem = e => {
@@ -72,15 +85,12 @@ function TodoList() {
 	let getFilteredItems = () =>
 		data.items.filter(item => !(data.filter && item.checked));
 
+	// console.log(getFilteredItems())
+
 	return (
 		<div>
-			<input
-				type='checkbox'
-				name='filter'
-				onclick={toggleFilter}
-				checked={data.filter}
-			/>
-			<label for='filter'>Hide Finished</label>
+			<input type='text' oninput={onTextChange} value={data.text} />
+			<button onclick={addTodo}>Add Todo</button>
 			<ul>
 				{getFilteredItems().map((item, i) => (
 					<li
@@ -92,6 +102,13 @@ function TodoList() {
 					</li>
 				))}
 			</ul>
+			<input
+				type='checkbox'
+				name='filter'
+				onclick={toggleFilter}
+				checked={data.filter}
+			/>
+			<label for='filter'>Hide Finished</label>
 		</div>
 	);
 }
@@ -114,4 +131,12 @@ Could also have the css function be a hook and call it within a component
 SFC another obvious option but I don't want to be locked into SFCs
 */
 
-render(<Counter initialCount={0} step={1} />, document.querySelector('#app'));
+function App() {
+	return (
+		<div>
+			<Counter initialCount={0} step={1} />
+			<TodoList />
+		</div>
+	);
+}
+render(<App />, document.querySelector('#app'));
