@@ -1,117 +1,82 @@
+import { e, render, createVDom } from './framework/index';
 import {
-	e,
-	render,
-	// value,
-	// obj,
+	value,
+	obj,
 	createContainer,
-	createVDom
-} from './framework/index';
-
-import { value, obj } from './framework/hooks';
+	onMount,
+	onDestroy
+} from './framework/hooks';
+import TemperatureConverter from './7guis/TemperatureConverter';
+import TodoList from './Todo';
+import FlightBooker from './7guis/FlightBooker';
 
 /* 
 TODO: in order of priority
 diffing / patching algorithm
-	- optimizing lists (keys)
+	- optimizing keyed lists
 batch updates within event loop
+get 'set' tp work because I still think it's cool
 lifecycle
-computed values / watch
+	- onMount *
+	- onDestroy *
+	- onUpdate
+lol tests
+watch *
 make code not an absolute mess
+default props dont work
 fragments / find a way to circumvent
+linkedState to get rid of the annoying value + onchange / oninput?
 scoped css api?
 */
 
-let counter = (initialCount, step) => {
-	let count = value(initialCount);
-	let increment = () => count.value++;
-	return { count, increment };
-};
+console.log(
+	createVDom(
+		<div>
+			<p><div /></p>
+		</div>
+	)
+);
 
-let ressetableCounter = (initialCount, step) => {
-	let { count, increment } = counter(initialCount, step);
-	let reset = () => (count.value = 0);
-	return { reset, count, increment };
-};
-
-let CounterContainer = createContainer(ressetableCounter);
-
-function Counter({ initialCount, step }) {
-	let { count } = CounterContainer.open(initialCount, step);
+function CounterNoMount() {
+	let count = value(0);
 	return (
 		<div>
 			<input type='number' value={count.value} />
-			<IncrementButton />
-			<ResetButton />
+			<button onclick={() => count.value++}>increment</button>
 		</div>
 	);
 }
 
-function IncrementButton() {
-	let { increment } = CounterContainer.use();
-	return <button onclick={increment}>+</button>;
-}
-
-function ResetButton() {
-	let { reset } = CounterContainer.use();
-	return <button onclick={reset}>reset</button>;
-}
-
-// input not a thing yet bc of no diffing alg, focus state gets destroyed
-function TodoList() {
-	let data = obj({
-		items: [{ text: 'clean room', checked: false }],
-		filter: false,
-		text: ''
+function CounterMount() {
+	let count = value(0);
+	onMount(() => {
+		console.log('oh shit');
 	});
-
-	let toggleFilter = e => {
-		data.filter = e.target.checked;
-	};
-
-	let addTodo = e => {
-		data.items = [...data.items, { text: data.text, checked: false }];
-		// data.items.push({ text: data.text, checked: false });
-	};
-
-	// console.log(data.items)
-
-	let onTextChange = e => {
-		data.text = e.target.value;
-	};
-
-	let toggleItem = e => {
-		data.items = data.items.map((item, i) =>
-			i == e.target.id ? { ...item, checked: !item.checked } : item
-		);
-	};
-
-	let getFilteredItems = () =>
-		data.items.filter(item => !(data.filter && item.checked));
-
-	// console.log(getFilteredItems())
-
+	onDestroy(() => {
+		console.log('boom');
+	});
 	return (
 		<div>
-			<input type='text' oninput={onTextChange} value={data.text} />
-			<button onclick={addTodo}>Add Todo</button>
-			<ul>
-				{getFilteredItems().map((item, i) => (
-					<li
-						style={item.checked ? { textDecoration: 'line-through' } : {}}
-						onclick={toggleItem}
-						id={i}
-					>
-						{item.text}
-					</li>
-				))}
-			</ul>
-			<input
-				type='checkbox'
-				name='filter'
-				onclick={toggleFilter}
-				checked={data.filter}
-			/>
-			<label for='filter'>Hide Finished</label>
+			<input type='number' value={count.value} />
+			<button onclick={() => count.value++}>increment</button>
+		</div>
+	);
+}
+
+function PokemonList() {
+	let items = value([]);
+	onMount(() => {
+		fetch('https://pokeapi.co/api/v2/pokemon/')
+			.then(res => res.json())
+			.then(res => {
+				items.value = res.results;
+			});
+	});
+	return (
+		<div>
+			{items.value.length === 0
+				? 'Loading...'
+				: items.value.map(item => <p>{item.name}</p>)}
 		</div>
 	);
 }
@@ -135,11 +100,15 @@ SFC another obvious option but I don't want to be locked into SFCs
 */
 
 function App() {
+	let val = value(true);
+	onMount(() => {
+		console.log('hi');
+	});
 	return (
 		<div>
-			<Counter initialCount={0} step={1} />
-			<TodoList />
+			<button onclick={() => (val.value = !val.value)}>switch</button>
+			{val.value ? <CounterMount /> : <CounterNoMount />}
 		</div>
 	);
 }
-render(<App />, document.querySelector('#app'));
+render(<TodoList />, document.querySelector('#app'));

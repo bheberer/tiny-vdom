@@ -1,6 +1,7 @@
 import { Component, getFragment } from './index';
 
 export function diff(oldElement, newElement) {
+	// console.log(oldElement, newElement)
 	if (newElement === undefined) {
 		return node => {
 			node.remove();
@@ -20,24 +21,21 @@ export function diff(oldElement, newElement) {
 		}
 	}
 
-	if (Array.isArray(oldElement) || Array.isArray(newElement)) {
-		let patch = diffChildren(oldElement, newElement);
-		return node => {
-			patch(node);
-			return node;
-		};
-	}
+	if (
+		oldElement.type !== newElement.type ||
+		oldElement.type.render !== newElement.type.render
+	) {
+		if (oldElement.type instanceof Component) {
+			oldElement.type.__hooks._destroy_callbacks.forEach(hookState =>
+				hookState._value()
+			);
+		}
 
-	if (oldElement.type !== newElement.type) {
-		// this is probably where I would want to be running onMount + onDestroy if the elements are components
-		// console.log('yo')
 		return node => {
 			node.replaceWith(getFragment(newElement));
 			return node;
 		};
 	}
-
-	// console.log(oldElement, newElement)
 
 	let patchProps = diffProps(
 		oldElement.type instanceof Component
@@ -97,42 +95,16 @@ function diffProps(oldProps, newProps) {
 	};
 }
 
-// function diffProps(oldProps, newProps) {
-// 	let patches = [];
+const zip = (xs, ys) => {
+	const zipped = [];
+	for (let i = 0; i < Math.min(xs.length, ys.length); i++) {
+		zipped.push([xs[i], ys[i]]);
+	}
+	return zipped;
+};
 
-// 	for (let [k, v] of Object.entries(newProps === null ? {} : newProps)) {
-// 		if ((k in oldProps && oldProps[k] !== v) || !(k in oldProps)) {
-// 			patches.push(node => {
-// 				node[k] = v;
-// 				return node;
-// 			});
-// 		}
-// 	}
-
-// 	for (let [k, v] of Object.entries(oldProps)) {
-// 		if (!(k in newProps)) {
-// 			patches.push(node => {
-// 				node.removeAttribute(k, v);
-// 				return node;
-// 			});
-// 		}
-// 	}
-
-// 	return node => {
-// 		for (let patch of patches) {
-// 			patch(node);
-// 		}
-// 		return node;
-// 	};
-// }
-
-// theres a value in newProps that is in oldProps and they're the same so do nothing
-// theres a value in newProps that is in oldProps and they're different so add patch
-// theres a value in newProps that isn't in oldProps so add patch
-// theres a value in oldProps that isn't in newProps
-
-// the problem is that when we diff we plug in the div and its looking for three children when the component itself only has one child
 function diffChildren(oldChildren, newChildren) {
+	// console.log(oldChildren, newChildren)
 	let patches = [];
 	oldChildren.forEach((child, i) => {
 		patches.push(diff(child, newChildren[i]));
@@ -145,9 +117,12 @@ function diffChildren(oldChildren, newChildren) {
 		});
 	}
 	return parent => {
-		parent.childNodes.forEach((child, i) => {
-			patches[i](child);
-		});
+		// parent.childNodes.forEach((child, i) => {
+		// 	patches[i](child);
+		// });
+		for (const [patch, child] of zip(patches, parent.childNodes)) {
+			patch(child);
+		}
 		for (let patch of additionalPatches) {
 			patch(parent);
 		}

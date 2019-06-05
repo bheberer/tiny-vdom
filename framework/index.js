@@ -1,8 +1,5 @@
 import { diff } from './diff';
-import { currentComponent, currentIndex } from './hooks';
-
-// let currentComponent;
-// let currentIndex;
+import { currentHook } from './hooks';
 
 export function Component(props, component, children) {
 	this.props = props;
@@ -14,8 +11,10 @@ export function Component(props, component, children) {
 
 // mounts fragment to dom
 export function render(element, target) {
-	let fragment = getFragment(createVDom(element));
-	target.parentNode.replaceChild(fragment, target);
+	// let fragment = getFragment(createVDom(element));
+	let patch = diff({}, createVDom(element));
+	patch(target);
+	// target.parentNode.replaceChild(fragment, target);
 }
 
 export function createVDom(element, lastComponent) {
@@ -35,8 +34,8 @@ export function createVDom(element, lastComponent) {
 
 		createVDom(element, element.type);
 	} else if (element.type instanceof Component) {
-		currentComponent = element.type;
-		currentIndex = 0;
+		currentHook.component = element.type;
+		currentHook.index = 0;
 
 		let children = element.type.render(element.props);
 		element.type.children = [children];
@@ -74,6 +73,7 @@ export function createVDom(element, lastComponent) {
 export function getFragment(vDom) {
 	let node;
 	if (vDom.type instanceof Component) {
+		vDom.type.__hooks._mount_callbacks.forEach(hookState => hookState._value());
 		let fragment = getFragment(vDom.children[0]);
 		vDom.type.fragment = fragment;
 		node = fragment;
@@ -93,95 +93,24 @@ export function getFragment(vDom) {
 		}
 
 		// this can still get cleaned up i think
+		// vDom.children.forEach(child => {
+		// 	if (Array.isArray(child)) {
+		// 		child.forEach(c => {
+		// 			node.append(getFragment(c));
+		// 		});
+		// 	} else if (typeof child === 'object') {
+		// 		node.append(getFragment(child));
+		// 	} else {
+		// 		node.append(getFragment(child));
+		// 	}
+		// });
+
 		vDom.children.forEach(child => {
-			if (Array.isArray(child)) {
-				child.forEach(c => {
-					node.append(getFragment(c));
-				});
-			} else if (typeof child === 'object') {
-				node.append(getFragment(child));
-			} else {
-				node.append(getFragment(child));
-			}
+			node.append(getFragment(child));
 		});
 	}
 
 	return node;
-}
-
-export function getHookState(index) {
-	let hooks =
-		currentComponent.__hooks ||
-		(currentComponent.__hooks = { _list: [], _mount_callbacks: [] });
-
-	if (index >= hooks._list.length) {
-		hooks._list.push({});
-	}
-
-	return hooks._list[index];
-}
-
-export function value(initialValue) {
-	let hookState = getHookState(currentIndex++);
-	if (!hookState._component) {
-		hookState._component = currentComponent;
-		hookState._value = new Proxy(
-			{
-				value: initialValue
-			},
-			{
-				get: function(obj, prop) {
-					return obj[prop];
-				},
-				set: function(obj, prop, value) {
-					obj[prop] = value;
-					let oldVDom = hookState._component.vDom;
-					let element = createVDom(hookState._component.element);
-					console.log(oldVDom, element);
-					let patch = diff(oldVDom, element);
-					patch(hookState._component.fragment);
-					return true;
-				}
-			}
-		);
-	}
-
-	return hookState._value;
-}
-
-export function obj(initialState) {
-	let hookState = getHookState(currentIndex++);
-	if (!hookState._component) {
-		hookState._component = currentComponent;
-		hookState._value = new Proxy(initialState, {
-			get: function(obj, prop) {
-				return obj[prop];
-			},
-			set: function(obj, prop, value) {
-				if (prop === 'set') {
-					obj = {
-						...obj,
-						...value
-					};
-				} else {
-					obj[prop] = value;
-				}
-				let oldVDom = { ...hookState._component.vDom };
-				let element = createVDom(hookState._component.element);
-				let patch = diff(oldVDom, element);
-				patch(hookState._component.fragment);
-				return true;
-			}
-		});
-	}
-
-	return hookState._value;
-}
-
-export function onMount(callback) {
-	let hookState = getHookState(currentIndex++);
-	hookState._value = callback;
-	currentComponent.__hooks._mount_callbacks.push(hookState);
 }
 
 export function e(type, props = {}, ...children) {
@@ -191,39 +120,3 @@ export function e(type, props = {}, ...children) {
 		children
 	};
 }
-
-export function createContainer(fn) {
-	let open = (...args) => {
-		let hookState = getHookState(currentIndex++);
-		if (!hookState._component) {
-			hookState._component = currentComponent;
-			let contents = fn(...args);
-			currentComponent.container = { ...contents };
-			currentComponent.containerFn = fn;
-		}
-		return currentComponent.container;
-	};
-	let use = () => {
-		let hookState = getHookState(currentIndex++);
-		if (!hookState._component) {
-			hookState._component = currentComponent;
-			let parent = currentComponent.parentComponent;
-			while (parent) {
-				if (parent.containerFn === fn) {
-					return parent.container;
-				}
-				parent = parent.parentComponent;
-			}
-		}
-	};
-	return { open, use };
-}
-
-/*
-createContainer creates an association with that particular state container and the component
-useContainer subscribes a child component to that container
-any updates to said container will update the component that the container was created in
-*/
-
-// make containers accept props (can make them optionally a function)
-// propogate containers down to children
